@@ -1,0 +1,8 @@
+what currently did : configued teh agent one tasks and added the credentials in env file and found out the some skills and categoty are repeatingwhen the extraction is happening from resume. 
+ to do:
+ 1. look in to extration logic and fix the extraction instability. 
+ 2. also make the agent handover the agent task after one agent task is complete and should display transferring to next agent.
+ 3. Add HF token and use it for sentence transformer model for extration.
+ 4. Fix the catefory and skills repetation and research on why it is happening. 
+ 5. implement proper agent hand off technique.
+ 6. ALso implement to make the process execute from were it was stopped and should not start from begining if any process was interupted or got some error issues. should store the break point and start from were it was left out.  
