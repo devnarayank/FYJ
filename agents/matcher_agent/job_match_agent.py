@@ -12,6 +12,8 @@ from config.prompts import JOB_MATCH_VERIFICATION_PROMPT, SEARCH_QUERY_GENERATIO
 from config.settings import AppSettings
 from config.constants import (
     DEFAULT_BOARDS,
+    FINAL_SEMANTIC_WEIGHT, FINAL_TFIDF_WEIGHT, FINAL_SKILL_WEIGHT,
+    LLM_VERIFICATION_WEIGHT,
     SEMANTIC_WEIGHT, TFIDF_WEIGHT, SKILL_OVERLAP_WEIGHT,
     SEMANTIC_PRE_FILTER_THRESHOLD, GROQ_DELAY_SECONDS,
 )
@@ -230,10 +232,10 @@ def _run_matching_pipeline(
                 )
                 # Recompute with LLM score included
                 final_composite = (
-                    0.30 * cand["_semantic_score"]
-                    + 0.25 * cand["_tfidf_score"]
-                    + 0.25 * cand["_skill_score"]
-                    + 0.20 * llm_result.get("match_score", 0)
+                    FINAL_SEMANTIC_WEIGHT * cand["_semantic_score"]
+                    + FINAL_TFIDF_WEIGHT * cand["_tfidf_score"]
+                    + FINAL_SKILL_WEIGHT * cand["_skill_score"]
+                    + LLM_VERIFICATION_WEIGHT * llm_result.get("match_score", 0)
                 )
 
                 if final_composite >= settings.match_threshold:

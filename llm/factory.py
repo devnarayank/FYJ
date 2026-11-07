@@ -5,6 +5,16 @@ from config.settings import AppSettings
 
 logger = logging.getLogger(__name__)
 
+#: Providers are announced once per task instead of on every call.
+_announced: set[str] = set()
+
+
+def _announce_provider(provider: str, task: str) -> None:
+    if task in _announced:
+        return
+    _announced.add(task)
+    logger.info("Using %s model provider for %s", provider, task)
+
 
 def _resolve_primary_model(settings: AppSettings) -> str:
     provider = (getattr(settings, "model_provider", "ollama") or "ollama").lower()
@@ -24,7 +34,7 @@ def build_llm(settings: AppSettings, *, task: str = "chat"):
         try:
             from langchain_ollama import ChatOllama
 
-            logger.info("Using Ollama model provider for %s", task)
+            _announce_provider("Ollama", task)
             return ChatOllama(
                 model=getattr(settings.ollama, "model", "gpt-oss:120b-cloud "),
                 base_url=getattr(settings.ollama, "base_url", "http://localhost:11434"),
@@ -37,7 +47,7 @@ def build_llm(settings: AppSettings, *, task: str = "chat"):
         try:
             from langchain_groq import ChatGroq
 
-            logger.info("Using Groq fallback provider for %s", task)
+            _announce_provider("Groq fallback", task)
             return ChatGroq(
                 model=settings.groq.model,
                 api_key=settings.groq.api_key,

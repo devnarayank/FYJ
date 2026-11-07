@@ -9,6 +9,7 @@ __pycache__/
 dist/
 build/
 *.egg
+.pytest_cache/
 
 # Virtual Environment
 venv/
@@ -17,17 +18,20 @@ env/
 
 # Data (generated at runtime)
 data/others/*
-data/chroma_db/
+data/chroma_db/*
 data/job_hunt.db
 data/resumes/*.pdf
 data/resumes/*.docx
+data/hf_cache/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+.kilo
 
 # OS
 Thumbs.db
 .DS_Store
+.specify

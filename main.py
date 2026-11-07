@@ -15,6 +15,27 @@ import logging
 from pathlib import Path
 
 os.environ.setdefault("PYTHONUTF8", "1")
+# The embedding model load report and the hub download notice are informational
+# and would otherwise dominate the CLI output. These have to be set before the
+# model libraries are imported (they configure themselves on import).
+os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
+os.environ.setdefault("HF_HUB_VERBOSITY", "error")
+os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+
+
+def _force_utf8_output() -> None:
+    """Make the console able to render the box-drawing characters used in logs."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):  # pragma: no cover - platform dependent
+            pass
+
+
+_force_utf8_output()
 
 import click
 from dotenv import load_dotenv
@@ -22,6 +43,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from rich.logging import RichHandler
+from rich.text import Text
 
 # Load .env before anything else
 load_dotenv()
@@ -43,6 +65,21 @@ def setup_logging(verbose: bool = False):
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     logging.getLogger("chromadb").setLevel(logging.WARNING)
     logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
+    # The embedding model load report and the hub download notice are noise
+    # for a CLI run and can be very long.
+    logging.getLogger("transformers").setLevel(logging.ERROR)
+    logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
+
+    # JobSpy installs its own stderr handler and reports blocked job boards at
+    # ERROR level. The search layer reports those conditions itself, so the
+    # third-party stream is muted to keep the pipeline output readable.
+    for name in list(logging.root.manager.loggerDict):
+        if name.startswith("JobSpy"):
+            jobspy_logger = logging.getLogger(name)
+            jobspy_logger.setLevel(logging.CRITICAL)
+            for handler in list(jobspy_logger.handlers):
+                jobspy_logger.removeHandler(handler)
+            jobspy_logger.propagate = False
 
 
 @click.group()
@@ -56,13 +93,23 @@ def cli(verbose):
 @click.argument("resume_path", type=click.Path(exists=True))
 @click.option("--roles", "-r", multiple=True, help="Target job titles")
 @click.option("--locations", "-l", multiple=True, help="Target locations")
-@click.option("--boards", "-b", multiple=True, help="Job boards/platforms")
+@click.option("--boards", "-b", multiple=True, help="Job sources to use (default: ENABLED_SOURCES)")
 def run(resume_path, roles, locations, boards):
-    """Run the full pipeline: analyze > search > outreach > track."""
+    """Run the pipeline and export results to data/job_hunt_results.xlsx."""
     from graph.orchestrator import run_pipeline
     from config.constants import DEFAULT_BOARDS
+    from config.settings import get_settings
 
-    selected_boards = list(boards) or DEFAULT_BOARDS
+    try:
+        configured = [
+            item.strip()
+            for item in (get_settings().enabled_sources or "").split(",")
+            if item.strip()
+        ]
+    except Exception:
+        configured = []
+
+    selected_boards = list(boards) or configured or list(DEFAULT_BOARDS)
 
     console.print(Panel.fit(
         "[bold green]Multi-Agent Job Hunter[/bold green]\n"
@@ -211,6 +258,17 @@ def _display_results(state: dict):
                 job.get("source_url", ""),
             )
         console.print(table)
+        console.print("\n[bold]Job links[/bold]")
+        for i, job in enumerate(matched, start=1):
+            title = job.get("title") or "Untitled job"
+            company = job.get("company") or "Unknown company"
+            source = job.get("source_board") or "unknown source"
+            url = job.get("source_url") or ""
+            console.print(Text(f"{i}. {title} — {company} ({source})"))
+            if url:
+                console.print(Text(f"   Open job / apply page: {url}"))
+            else:
+                console.print(Text("   No job link was provided; search this title and company on the source board."))
     else:
         console.print("[yellow]No jobs matched above the threshold.[/yellow]")
 
@@ -227,6 +285,16 @@ def _display_results(state: dict):
     # Dashboard
     if dashboard:
         _display_dashboard(dashboard)
+
+    from tools.excel_export import export_pipeline_results
+
+    try:
+        workbook_path = export_pipeline_results(state)
+    except OSError as exc:
+        raise click.ClickException(
+            f"Could not save Excel results. Close the workbook if it is open and retry. {exc}"
+        ) from exc
+    console.print(f"\n[green]Excel results saved to:[/green] {workbook_path}")
 
 
 def _display_dashboard(dashboard_data):

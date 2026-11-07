@@ -3,63 +3,58 @@ Application-wide constants and thresholds.
 """
 
 # --- Matching Pipeline Weights ---
+# Stage 1 (pre-screening, before the LLM verification call).
 SEMANTIC_WEIGHT = 0.35
 TFIDF_WEIGHT = 0.30
 SKILL_OVERLAP_WEIGHT = 0.35
 
+# Stage 2 (final composite, includes the LLM verification score).
+FINAL_SEMANTIC_WEIGHT = 0.30
+FINAL_TFIDF_WEIGHT = 0.25
+FINAL_SKILL_WEIGHT = 0.25
+LLM_VERIFICATION_WEIGHT = 0.20
+
 # Loose gate for Stage 1 (semantic pre-filter)
 SEMANTIC_PRE_FILTER_THRESHOLD = 0.50
 
-# --- Job Boards ---
-JOBSPY_BOARDS = ["indeed", "linkedin", "glassdoor", "zip_recruiter"]
+# --- Job Sources ---
+# Boards reachable through the JobSpy scraper. Several of them answer every
+# request with a bot-protection wall (HTTP 403), so only the ones that
+# actually serve results are enabled by default. The rest stay selectable and
+# are disabled automatically for the run if they keep failing.
+JOBSPY_BOARDS = [
+    "indeed",
+    "linkedin",
+    "glassdoor",
+    "zip_recruiter",
+    "bayt",
+    "naukri",
+]
+
+#: JobSpy boards that are known to work without a proxy.
+WORKING_JOBSPY_BOARDS = ["indeed", "linkedin"]
+
+#: Boards scraped directly over HTTP by the provider layer. Each of them
+#: publishes a schema.org JobPosting document for every posting.
+DIRECT_BOARDS = ["wellfound", "cutshort"]
 
 NICHE_JOB_PLATFORMS = {
-    "cutshort": {
-        "name": "CutShort",
-        "search_url": "https://cutshort.io/jobs/{query}-jobs",
-        "best_for": "Indian tech market, software engineers, data scientists",
-        "why_better": "AI-powered matching, direct company outreach, less agency spam",
-    },
     "wellfound": {
         "name": "Wellfound",
         "search_url": "https://wellfound.com/jobs?q={query}",
         "best_for": "Startup jobs for developers and AI engineers",
         "why_better": "Startup jobs posted directly by companies and real hiring teams",
     },
-    "instahyre": {
-        "name": "Instahyre",
-        "search_url": "https://www.instahyre.com/search-jobs/?search={query}",
-        "best_for": "Software engineers and data engineers in India",
-        "why_better": "Privacy-focused direct company hiring for premium tech roles",
-    },
-    "analytics_vidhya": {
-        "name": "Analytics Vidhya Career Portal",
-        "search_url": "https://jobs.analyticsvidhya.com/jobs/?q={query}",
-        "best_for": "Data scientists, AI researchers, ML engineers",
-        "why_better": "Niche AI and analytics hiring with community-driven roles",
-    },
-    "huggingface": {
-        "name": "Hugging Face Jobs",
-        "search_url": "https://huggingface.co/jobs?search={query}",
-        "best_for": "AI engineers, AI researchers, ML roles",
-        "why_better": "AI/ML-specific roles from AI-focused companies",
-    },
-    "triplebyte": {
-        "name": "Triplebyte",
-        "search_url": "https://triplebyte.com/jobs?query={query}",
-        "best_for": "Software engineers and data engineers",
-        "why_better": "Assessment-led company interviews with fewer agency interactions",
-    },
-    "otta": {
-        "name": "Otta",
-        "search_url": "https://app.otta.com/jobs?query={query}",
-        "best_for": "Tech roles at startups for developers and data specialists",
-        "why_better": "Curated tech companies and high-quality startup roles",
+    "cutshort": {
+        "name": "CutShort",
+        "search_url": "https://cutshort.io/jobs/{query}-jobs",
+        "best_for": "Indian tech market, software engineers, data scientists",
+        "why_better": "AI-powered matching, direct company outreach, less agency spam",
     },
 }
 
-SUPPORTED_BOARDS = JOBSPY_BOARDS + list(NICHE_JOB_PLATFORMS.keys())
-DEFAULT_BOARDS = SUPPORTED_BOARDS
+SUPPORTED_BOARDS = JOBSPY_BOARDS + DIRECT_BOARDS
+DEFAULT_BOARDS = WORKING_JOBSPY_BOARDS + DIRECT_BOARDS
 
 # --- Rate Limiting ---
 SCRAPE_DELAY_SECONDS = 2.0       # Delay between job board requests

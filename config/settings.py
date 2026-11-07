@@ -87,9 +87,23 @@ class AppSettings(BaseSettings):
     resume_dir: str = Field(default="data/resumes", alias="RESUME_DIR")
 
     # Matching
-    match_threshold: float = Field(default=0.95, alias="MATCH_THRESHOLD")
+    # Composite score in the 0.0-1.0 range (weighted semantic similarity,
+    # keyword alignment, skill overlap and LLM verification). The realistic
+    # range for a resume against a real job description is roughly 0.3-0.7.
+    match_threshold: float = Field(default=0.50, alias="MATCH_THRESHOLD")
     max_results_per_board: int = Field(default=200, alias="MAX_RESULTS_PER_BOARD")
     batch_size: int = Field(default=50, alias="BATCH_SIZE")
+
+    # Job discovery / search layer
+    enabled_sources: str = Field(
+        default="indeed,linkedin,wellfound,cutshort", alias="ENABLED_SOURCES"
+    )
+    max_detail_fetches: int = Field(default=20, alias="MAX_DETAIL_FETCHES")
+    request_timeout_seconds: int = Field(default=20, alias="REQUEST_TIMEOUT_SECONDS")
+    source_failure_threshold: int = Field(default=3, alias="SOURCE_FAILURE_THRESHOLD")
+    max_concurrent_fetches: int = Field(default=6, alias="MAX_CONCURRENT_FETCHES")
+    min_description_chars: int = Field(default=80, alias="MIN_DESCRIPTION_CHARS")
+    jobspy_proxies: str = Field(default="", alias="JOBSPY_PROXIES")
 
     # Rate limits
     max_emails_per_hour: int = Field(default=10, alias="MAX_EMAILS_PER_HOUR")
@@ -144,6 +158,18 @@ class AppSettings(BaseSettings):
         # Validate thresholds
         if not (0.0 <= self.match_threshold <= 1.0):
             raise ValueError("match_threshold must be between 0.0 and 1.0")
+
+        # Validate search layer limits
+        if self.max_detail_fetches < 1:
+            raise ValueError("max_detail_fetches must be at least 1")
+        if self.max_concurrent_fetches < 1:
+            raise ValueError("max_concurrent_fetches must be at least 1")
+        if self.source_failure_threshold < 1:
+            raise ValueError("source_failure_threshold must be at least 1")
+        if self.request_timeout_seconds < 1:
+            raise ValueError("request_timeout_seconds must be at least 1")
+        if self.min_description_chars < 40:
+            raise ValueError("min_description_chars must be at least 40")
 
         # Validate SMTP if credentials are provided
         if self.smtp.username:

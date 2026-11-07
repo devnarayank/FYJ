@@ -7,7 +7,11 @@ from typing import Any
 
 from config.constants import (
     DEFAULT_BOARDS,
+    FINAL_SEMANTIC_WEIGHT,
+    FINAL_SKILL_WEIGHT,
+    FINAL_TFIDF_WEIGHT,
     GROQ_DELAY_SECONDS,
+    LLM_VERIFICATION_WEIGHT,
     SEMANTIC_PRE_FILTER_THRESHOLD,
     SEMANTIC_WEIGHT,
     SKILL_OVERLAP_WEIGHT,
@@ -186,10 +190,10 @@ def _run_matching_pipeline(
             if composite >= settings.match_threshold:
                 llm_result = _llm_verify_match(candidate_profile, cand, settings)
                 final_composite = (
-                    0.30 * cand["_semantic_score"]
-                    + 0.25 * cand["_tfidf_score"]
-                    + 0.25 * cand["_skill_score"]
-                    + 0.20 * llm_result.get("match_score", 0)
+                    FINAL_SEMANTIC_WEIGHT * cand["_semantic_score"]
+                    + FINAL_TFIDF_WEIGHT * cand["_tfidf_score"]
+                    + FINAL_SKILL_WEIGHT * cand["_skill_score"]
+                    + LLM_VERIFICATION_WEIGHT * llm_result.get("match_score", 0)
                 )
 
                 if final_composite >= settings.match_threshold:
@@ -225,10 +229,22 @@ def _run_matching_pipeline(
     return all_matches
 
 
+def _respect_provider_rate_limit(settings: AppSettings) -> None:
+    """Pause only when the provider actually needs it.
+
+    The hosted fallback has a strict free-tier rate limit, a local model does
+    not - delaying every verification would make the run needlessly slow.
+    """
+    provider = (getattr(settings, "model_provider", "ollama") or "ollama").lower()
+    if provider == "ollama" and getattr(settings.ollama, "enabled", True):
+        return
+    time.sleep(GROQ_DELAY_SECONDS)
+
+
 def _llm_verify_match(profile: CandidateProfile, job: dict, settings: AppSettings) -> dict:
     """Use the configured LLM to verify the final match quality."""
     try:
-        time.sleep(GROQ_DELAY_SECONDS)
+        _respect_provider_rate_limit(settings)
         llm = build_llm(settings, task="job_verification")
         from langchain_core.messages import HumanMessage, SystemMessage
 
