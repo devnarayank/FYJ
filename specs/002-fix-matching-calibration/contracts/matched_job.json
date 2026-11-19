@@ -1,0 +1,127 @@
+// MatchedJob API Schema (extended)
+// Source: models/schemas.py
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MatchedJob",
+  "type": "object",
+  "required": ["job_id", "source_board", "source_url", "title", "company", "location", "description", "description_snippet", "match_scores", "skill_analysis", "status", "score_interpretation", "score_breakdown", "weight_config_used"],
+  "properties": {
+    "job_id": { "type": "string", "format": "uuid" },
+    "source_board": { "type": "string", "enum": ["indeed", "linkedin", "wellfound", "cutshort"] },
+    "source_url": { "type": "string", "format": "uri" },
+    "title": { "type": "string", "minLength": 1 },
+    "company": { "type": "string", "minLength": 1 },
+    "location": { "type": "string" },
+    "salary_range": { "type": ["string", "null"] },
+    "posted_date": { "type": ["string", "null"], "format": "date" },
+    "description": { "type": "string", "minLength": 1 },
+    "description_snippet": { "type": "string", "maxLength": 500 },
+    "match_scores": { "$ref": "#/definitions/MatchScores" },
+    "skill_analysis": { "$ref": "#/definitions/SkillAnalysis" },
+    "status": { "type": "string", "const": "matched" },
+    "score_interpretation": { "type": "string", "enum": ["strong", "moderate", "weak"] },
+    "score_breakdown": { "$ref": "#/definitions/ScoreBreakdown" },
+    "weight_config_used": { "$ref": "#/definitions/WeightConfigSnapshot" }
+  },
+  "definitions": {
+    "MatchScores": {
+      "type": "object",
+      "required": ["semantic_similarity", "tfidf_similarity", "skill_overlap", "llm_verification_score", "composite_score", "semantic_contribution", "tfidf_contribution", "skill_contribution", "semantic_contribution_final", "tfidf_contribution_final", "skill_contribution_final", "llm_contribution_final", "stage1_formula", "stage2_formula"],
+      "properties": {
+        "semantic_similarity": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "tfidf_similarity": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "skill_overlap": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "llm_verification_score": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "composite_score": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "semantic_contribution": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "tfidf_contribution": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "skill_contribution": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "semantic_contribution_final": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "tfidf_contribution_final": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "skill_contribution_final": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "llm_contribution_final": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "stage1_formula": { "type": "string" },
+        "stage2_formula": { "type": "string" }
+      }
+    },
+    "SkillAnalysis": {
+      "type": "object",
+      "required": ["matched_skills", "missing_skills", "skill_match_details"],
+      "properties": {
+        "matched_skills": { "type": "array", "items": { "type": "string" } },
+        "missing_skills": { "type": "array", "items": { "type": "string" } },
+        "skill_match_details": { "type": "array", "items": { "$ref": "#/definitions/SkillMatchDetail" } }
+      }
+    },
+    "SkillMatchDetail": {
+      "type": "object",
+      "required": ["skill", "matched", "resume_evidence", "job_requirement_context", "confidence"],
+      "properties": {
+        "skill": { "type": "string" },
+        "matched": { "type": "boolean" },
+        "resume_evidence": { "type": "string" },
+        "job_requirement_context": { "type": "string" },
+        "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+      }
+    },
+    "ScoreBreakdown": {
+      "type": "object",
+      "required": ["stage1_components", "stage2_components", "stage1_formula", "stage2_formula", "interpretation_band"],
+      "properties": {
+        "stage1_components": {
+          "type": "object",
+          "required": ["semantic", "tfidf", "skill_overlap"],
+          "properties": {
+            "semantic": { "$ref": "#/definitions/ComponentScore" },
+            "tfidf": { "$ref": "#/definitions/ComponentScore" },
+            "skill_overlap": { "$ref": "#/definitions/ComponentScore" }
+          }
+        },
+        "stage2_components": {
+          "type": "object",
+          "required": ["semantic", "tfidf", "skill_overlap", "llm_verification"],
+          "properties": {
+            "semantic": { "$ref": "#/definitions/ComponentScore" },
+            "tfidf": { "$ref": "#/definitions/ComponentScore" },
+            "skill_overlap": { "$ref": "#/definitions/ComponentScore" },
+            "llm_verification": { "$ref": "#/definitions/ComponentScore" }
+          }
+        },
+        "stage1_formula": { "type": "string" },
+        "stage2_formula": { "type": "string" },
+        "interpretation_band": {
+          "type": "object",
+          "required": ["strong_min", "moderate_min"],
+          "properties": {
+            "strong_min": { "type": "number" },
+            "moderate_min": { "type": "number" }
+          }
+        }
+      }
+    },
+    "ComponentScore": {
+      "type": "object",
+      "required": ["raw_score", "weight", "weighted_contribution"],
+      "properties": {
+        "raw_score": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "weight": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "weighted_contribution": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+      }
+    },
+    "WeightConfigSnapshot": {
+      "type": "object",
+      "required": ["semantic_weight", "tfidf_weight", "skill_overlap_weight", "final_semantic_weight", "final_tfidf_weight", "final_skill_weight", "llm_verification_weight", "stage1_sum", "stage2_sum"],
+      "properties": {
+        "semantic_weight": { "type": "number" },
+        "tfidf_weight": { "type": "number" },
+        "skill_overlap_weight": { "type": "number" },
+        "final_semantic_weight": { "type": "number" },
+        "final_tfidf_weight": { "type": "number" },
+        "final_skill_weight": { "type": "number" },
+        "llm_verification_weight": { "type": "number" },
+        "stage1_sum": { "type": "number", "const": 1.0 },
+        "stage2_sum": { "type": "number", "const": 1.0 }
+      }
+    }
+  }
+}

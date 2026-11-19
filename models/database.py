@@ -2,11 +2,11 @@
 SQLite database setup with table creation and CRUD helper functions.
 """
 import sqlite3
-import json
 import uuid
-from pathlib import Path
-from datetime import datetime
 from contextlib import contextmanager
+from datetime import datetime
+from pathlib import Path
+
 from models.schemas import MatchedJob, OutreachResult, ReplyClassification
 
 

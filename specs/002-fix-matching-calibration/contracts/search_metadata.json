@@ -1,0 +1,42 @@
+// SearchMetadata API Schema (extended)
+// Source: models/schemas.py
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SearchMetadata",
+  "type": "object",
+  "required": ["total_scraped", "passed_semantic_gate", "passed_final_filter", "weight_configuration", "thresholds_used"],
+  "properties": {
+    "total_scraped": { "type": "integer", "minimum": 0 },
+    "passed_semantic_gate": { "type": "integer", "minimum": 0 },
+    "passed_final_filter": { "type": "integer", "minimum": 0 },
+    "weight_configuration": { "$ref": "#/definitions/WeightConfigSnapshot" },
+    "thresholds_used": { "$ref": "#/definitions/ThresholdsSnapshot" }
+  },
+  "definitions": {
+    "WeightConfigSnapshot": {
+      "type": "object",
+      "required": ["semantic_weight", "tfidf_weight", "skill_overlap_weight", "final_semantic_weight", "final_tfidf_weight", "final_skill_weight", "llm_verification_weight", "stage1_sum", "stage2_sum"],
+      "properties": {
+        "semantic_weight": { "type": "number" },
+        "tfidf_weight": { "type": "number" },
+        "skill_overlap_weight": { "type": "number" },
+        "final_semantic_weight": { "type": "number" },
+        "final_tfidf_weight": { "type": "number" },
+        "final_skill_weight": { "type": "number" },
+        "llm_verification_weight": { "type": "number" },
+        "stage1_sum": { "type": "number", "const": 1.0 },
+        "stage2_sum": { "type": "number", "const": 1.0 }
+      }
+    },
+    "ThresholdsSnapshot": {
+      "type": "object",
+      "required": ["semantic_pre_filter", "match_threshold", "score_band_strong_min", "score_band_moderate_min"],
+      "properties": {
+        "semantic_pre_filter": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "match_threshold": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "score_band_strong_min": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "score_band_moderate_min": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+      }
+    }
+  }
+}

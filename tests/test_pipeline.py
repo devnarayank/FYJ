@@ -1,10 +1,11 @@
 """Quick integration test for matching pipeline components."""
 import sys
+
 sys.path.insert(0, "f:/fyj")
 
 
 def test_skill_matcher():
-    from tools.skill_matcher import extract_skills_from_text, compute_skill_overlap
+    from tools.skill_matcher import compute_skill_overlap, extract_skills_from_text
 
     resume_text = (
         "Senior Python Developer with 8 years of experience in Django, FastAPI, PostgreSQL. "
@@ -42,7 +43,7 @@ def test_tfidf():
 
 
 def test_embeddings():
-    from tools.embedding_tools import embed_text, cosine_similarity
+    from tools.embedding_tools import cosine_similarity, embed_text
 
     resume = "Senior Python developer with Django and PostgreSQL experience"
     jd = "Backend engineer needed with Python and database skills"

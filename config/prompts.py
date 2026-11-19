@@ -57,7 +57,9 @@ OUTPUT FORMAT — respond with ONLY this JSON structure, no other text:
 }"""
 
 JOB_MATCH_VERIFICATION_PROMPT = """You are a Job Match Verification AI. Given a candidate's profile
-and a job description, determine if this is truly a strong match (>95% relevance).
+and a job description, assess if this job is a strong match for the candidate.
+The pipeline's match threshold is {match_threshold:.0%} composite score.
+A 'strong match' means the candidate would likely pass initial screening at this threshold.
 
 Analyze:
 1. Does the candidate have the CORE required skills for this role?

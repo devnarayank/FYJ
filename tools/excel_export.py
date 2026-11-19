@@ -12,7 +12,6 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-
 _HEADER_FILL = PatternFill(fill_type="solid", fgColor="1F4E78")
 _HEADER_FONT = Font(color="FFFFFF", bold=True)
 _HYPERLINK_FONT = Font(color="0563C1", underline="single")

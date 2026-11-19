@@ -5,7 +5,6 @@ Integrates with ChromaDB for persistent vector storage.
 import logging
 import os
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 
@@ -88,7 +87,7 @@ def store_embedding(
     doc_id: str,
     text: str,
     embedding: list[float],
-    metadata: Optional[dict] = None,
+    metadata: dict | None = None,
     persist_dir: str = "data/chroma_db",
 ):
     """Store an embedding in ChromaDB."""

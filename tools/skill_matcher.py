@@ -1,9 +1,10 @@
 """
 Skill matching tool — uses curated taxonomy + fuzzy matching.
 """
-import re
 import logging
+
 from rapidfuzz import fuzz
+
 from config.skill_taxonomy import SKILL_TAXONOMY
 
 logger = logging.getLogger(__name__)

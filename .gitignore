@@ -22,7 +22,7 @@ data/chroma_db/*
 data/job_hunt.db
 data/resumes/*.pdf
 data/resumes/*.docx
-data/hf_cache/
+data/hf_cache/*
 
 # IDE
 .vscode/
@@ -35,3 +35,5 @@ data/hf_cache/
 Thumbs.db
 .DS_Store
 .specify
+
+.github/

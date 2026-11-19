@@ -1,15 +1,15 @@
 """
 Email tools — SMTP sending and IMAP inbox monitoring.
 """
-import smtplib
-import imaplib
 import email
-import time
+import imaplib
 import logging
-from email.mime.text import MIMEText
+import smtplib
+import time
 from email.mime.multipart import MIMEMultipart
-from email.utils import make_msgid, formatdate
-from datetime import datetime
+from email.mime.text import MIMEText
+from email.utils import formatdate, make_msgid
+
 from config.constants import EMAIL_DELAY_SECONDS
 from tools.validators import validate_email_address, validate_port_number
 
@@ -44,28 +44,28 @@ def send_email(
         except ValueError as e:
             logger.error(f"Email validation failed: {e}")
             return {"success": False, "message_id": "", "error": f"Invalid email format: {str(e)}"}
-        
+
         # Validate SMTP port
         try:
             smtp_port = validate_port_number(smtp_port)
         except ValueError as e:
             logger.error(f"Invalid SMTP port: {e}")
             return {"success": False, "message_id": "", "error": f"Invalid SMTP port: {str(e)}"}
-        
+
         # Validate credentials exist
         if not smtp_user or not smtp_pass:
             logger.error("SMTP credentials missing")
             return {"success": False, "message_id": "", "error": "SMTP credentials missing"}
-        
+
         # Validate subject and body
         if not subject or not subject.strip():
             logger.error("Email subject cannot be empty")
             return {"success": False, "message_id": "", "error": "Email subject cannot be empty"}
-        
+
         if not body or not body.strip():
             logger.error("Email body cannot be empty")
             return {"success": False, "message_id": "", "error": "Email body cannot be empty"}
-        
+
         msg = MIMEMultipart("alternative")
         msg["From"] = f"{from_name} <{from_email}>"
         msg["To"] = to_email

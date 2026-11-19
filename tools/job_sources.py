@@ -25,9 +25,10 @@ import re
 import threading
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Iterable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from typing import Any, Iterable, Sequence
+from typing import Any
 
 import requests
 from requests.adapters import HTTPAdapter

@@ -1,8 +1,22 @@
 """
 Application-wide constants and thresholds.
+
+DEPRECATED: The following weight and threshold constants have been moved to
+config.settings.AppSettings with validation. They are kept here for backward
+compatibility but will be removed in a future version. Use AppSettings instead:
+  - SEMANTIC_WEIGHT -> settings.semantic_weight
+  - TFIDF_WEIGHT -> settings.tfidf_weight
+  - SKILL_OVERLAP_WEIGHT -> settings.skill_overlap_weight
+  - FINAL_SEMANTIC_WEIGHT -> settings.final_semantic_weight
+  - FINAL_TFIDF_WEIGHT -> settings.final_tfidf_weight
+  - FINAL_SKILL_WEIGHT -> settings.final_skill_weight
+  - LLM_VERIFICATION_WEIGHT -> settings.llm_verification_weight
+  - SEMANTIC_PRE_FILTER_THRESHOLD -> settings.semantic_pre_filter_threshold
+  - MATCH_THRESHOLD -> settings.match_threshold
+  - Score bands -> settings.score_band_strong_min, settings.score_band_moderate_min
 """
 
-# --- Matching Pipeline Weights ---
+# --- Matching Pipeline Weights (DEPRECATED - use config.settings.AppSettings) ---
 # Stage 1 (pre-screening, before the LLM verification call).
 SEMANTIC_WEIGHT = 0.35
 TFIDF_WEIGHT = 0.30
@@ -14,7 +28,7 @@ FINAL_TFIDF_WEIGHT = 0.25
 FINAL_SKILL_WEIGHT = 0.25
 LLM_VERIFICATION_WEIGHT = 0.20
 
-# Loose gate for Stage 1 (semantic pre-filter)
+# Loose gate for Stage 1 (semantic pre-filter) - DEPRECATED
 SEMANTIC_PRE_FILTER_THRESHOLD = 0.50
 
 # --- Job Sources ---

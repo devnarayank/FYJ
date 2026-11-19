@@ -15,7 +15,7 @@ def test_ollama_provider_default_builds():
 
 
 def test_tool_registry_is_declared_with_langchain_tools():
-    from graph.tools import parse_resume_file, generate_search_queries, save_matched_jobs
+    from graph.tools import generate_search_queries, parse_resume_file, save_matched_jobs
 
     assert hasattr(parse_resume_file, "name")
     assert hasattr(generate_search_queries, "name")

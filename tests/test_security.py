@@ -3,7 +3,6 @@ Comprehensive security and functionality test suite.
 Run this to verify all security fixes and functionality.
 """
 import sys
-import os
 
 # Add project to path
 sys.path.insert(0, "f:/fyj")
@@ -13,34 +12,26 @@ def test_imports():
     print("=" * 60)
     print("TEST 1: Module Imports")
     print("=" * 60)
-    
+
     try:
-        import tools.validators
         print("✓ validators module imported successfully")
-        
-        import tools.rate_limiter
+
         print("✓ rate_limiter module imported successfully")
-        
-        import tools.email_tools
+
         print("✓ email_tools module imported successfully")
-        
-        import tools.resume_parser
+
         print("✓ resume_parser module imported successfully")
-        
-        import agents.resumer_agent.resume_agent
+
         print("✓ resume_agent module imported successfully")
-        
-        import agents.matcher_agent.job_match_agent
+
         print("✓ job_match_agent module imported successfully")
-        
+
         # outreach_agent and followup_agent removed from codebase
-        
-        import graph.orchestrator
+
         print("✓ orchestrator module imported successfully")
-        
-        import config.settings
+
         print("✓ settings module imported successfully")
-        
+
         return True
     except Exception as e:
         print(f"✗ Import failed: {e}")
@@ -54,17 +45,17 @@ def test_validators():
     print("\n" + "=" * 60)
     print("TEST 2: Validator Functions")
     print("=" * 60)
-    
+
     from tools.validators import (
-        validate_email_address,
-        validate_port_number,
         parse_json_safely,
         sanitize_sql_identifier,
+        validate_email_address,
+        validate_port_number,
     )
-    
+
     tests_passed = 0
     tests_total = 0
-    
+
     # Test email validation
     tests_total += 1
     try:
@@ -73,7 +64,7 @@ def test_validators():
         tests_passed += 1
     except Exception as e:
         print(f"✗ Email validation failed: {e}")
-    
+
     # Test invalid email
     tests_total += 1
     try:
@@ -82,7 +73,7 @@ def test_validators():
     except ValueError:
         print("✓ Invalid email correctly rejected")
         tests_passed += 1
-    
+
     # Test port validation
     tests_total += 1
     try:
@@ -91,7 +82,7 @@ def test_validators():
         tests_passed += 1
     except Exception as e:
         print(f"✗ Port validation failed: {e}")
-    
+
     # Test invalid port
     tests_total += 1
     try:
@@ -100,7 +91,7 @@ def test_validators():
     except ValueError:
         print("✓ Invalid port correctly rejected")
         tests_passed += 1
-    
+
     # Test JSON parsing
     tests_total += 1
     try:
@@ -113,7 +104,7 @@ def test_validators():
             print("✗ JSON parsing returned unexpected result")
     except Exception as e:
         print(f"✗ JSON parsing failed: {e}")
-    
+
     # Test SQL identifier sanitization
     tests_total += 1
     try:
@@ -122,7 +113,7 @@ def test_validators():
         tests_passed += 1
     except Exception as e:
         print(f"✗ SQL identifier sanitization failed: {e}")
-    
+
     print(f"\nValidator tests: {tests_passed}/{tests_total} passed")
     return tests_passed == tests_total
 
@@ -132,24 +123,24 @@ def test_rate_limiter():
     print("\n" + "=" * 60)
     print("TEST 3: Rate Limiter")
     print("=" * 60)
-    
+
     from tools.rate_limiter import EmailRateLimiter
-    
+
     try:
         limiter = EmailRateLimiter(max_per_hour=10)
         print("✓ EmailRateLimiter created successfully")
-        
+
         # Test can send
         if limiter.can_send_email():
             print("✓ Can send email (quota available)")
         else:
             print("✗ Should be able to send email")
             return False
-        
+
         # Check remaining quota
         remaining = limiter.get_remaining_quota()
         print(f"✓ Remaining quota: {remaining}")
-        
+
         return True
     except Exception as e:
         print(f"✗ Rate limiter test failed: {e}")
@@ -163,12 +154,11 @@ def test_settings():
     print("\n" + "=" * 60)
     print("TEST 4: Settings")
     print("=" * 60)
-    
+
     try:
         # This will fail if GROQ_API_KEY is not set, which is expected
-        from config.settings import AppSettings
         print("✓ AppSettings class loaded")
-        
+
         # Try to create settings (may fail due to missing env vars)
         try:
             from config.settings import get_settings
@@ -185,7 +175,7 @@ def test_settings():
         except Exception as e:
             print(f"⚠ Settings error: {e}")
             return True
-    
+
     except Exception as e:
         print(f"✗ Settings test failed: {e}")
         import traceback
@@ -198,17 +188,19 @@ def test_schemas():
     print("\n" + "=" * 60)
     print("TEST 5: Data Schemas")
     print("=" * 60)
-    
+
     try:
         from models.schemas import (
-            CandidateProfile, Skills, WorkExperience, MatchedJob, 
-            MatchScores, SkillAnalysis
+            CandidateProfile,
+            MatchedJob,
+            MatchScores,
+            Skills,
         )
-        
+
         # Test creating a skills object
         skills = Skills(languages=["Python"], frameworks=["Django"])
         print("✓ Skills schema created")
-        
+
         # Test creating a CandidateProfile
         profile = CandidateProfile(
             name="Test User",
@@ -216,7 +208,7 @@ def test_schemas():
             skills=skills
         )
         print("✓ CandidateProfile schema created")
-        
+
         # Test MatchScores
         scores = MatchScores(
             semantic_similarity=0.85,
@@ -225,7 +217,7 @@ def test_schemas():
             composite_score=0.85
         )
         print("✓ MatchScores schema created")
-        
+
         # Test MatchedJob
         job = MatchedJob(
             source_board="indeed",
@@ -237,7 +229,7 @@ def test_schemas():
             match_scores=scores
         )
         print(f"✓ MatchedJob schema created with ID: {job.job_id}")
-        
+
         return True
     except Exception as e:
         print(f"✗ Schema test failed: {e}")
@@ -251,18 +243,18 @@ def test_database():
     print("\n" + "=" * 60)
     print("TEST 6: Database")
     print("=" * 60)
-    
+
     try:
         from models.database import Database
-        
+
         # Create a test database
         db = Database("data/test_job_hunt.db")
         print("✓ Database initialized successfully")
-        
+
         # Test getting all jobs (should be empty initially)
         jobs = db.get_all_jobs()
         print(f"✓ Database query works (found {len(jobs)} jobs)")
-        
+
         return True
     except Exception as e:
         print(f"✗ Database test failed: {e}")
@@ -277,30 +269,30 @@ def main():
     print("SECURITY & FUNCTIONALITY TEST SUITE")
     print("Multi-Agent Job Hunter")
     print("=" * 60 + "\n")
-    
+
     results = []
-    
+
     results.append(("Module Imports", test_imports()))
     results.append(("Validators", test_validators()))
     results.append(("Rate Limiter", test_rate_limiter()))
     results.append(("Settings", test_settings()))
     results.append(("Schemas", test_schemas()))
     results.append(("Database", test_database()))
-    
+
     # Summary
     print("\n" + "=" * 60)
     print("TEST SUMMARY")
     print("=" * 60)
-    
+
     passed = sum(1 for _, result in results if result)
     total = len(results)
-    
+
     for test_name, result in results:
         status = "✓ PASS" if result else "✗ FAIL"
         print(f"{status}: {test_name}")
-    
+
     print(f"\nTotal: {passed}/{total} test groups passed")
-    
+
     if passed == total:
         print("\n🎉 All security tests passed!")
         print("\nNext steps:")

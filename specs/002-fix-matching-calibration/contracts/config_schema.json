@@ -1,0 +1,107 @@
+// AppSettings Configuration Schema (weight/threshold fields)
+// Source: config/settings.py
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MatchingPipelineConfig",
+  "type": "object",
+  "properties": {
+    "semantic_weight": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.35,
+      "description": "Stage 1 semantic similarity weight (env: SEMANTIC_WEIGHT)"
+    },
+    "tfidf_weight": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.30,
+      "description": "Stage 1 TF-IDF similarity weight (env: TFIDF_WEIGHT)"
+    },
+    "skill_overlap_weight": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.35,
+      "description": "Stage 1 skill overlap weight (env: SKILL_OVERLAP_WEIGHT)"
+    },
+    "final_semantic_weight": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.30,
+      "description": "Stage 2 final semantic weight (env: FINAL_SEMANTIC_WEIGHT)"
+    },
+    "final_tfidf_weight": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.25,
+      "description": "Stage 2 final TF-IDF weight (env: FINAL_TFIDF_WEIGHT)"
+    },
+    "final_skill_weight": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.25,
+      "description": "Stage 2 final skill weight (env: FINAL_SKILL_WEIGHT)"
+    },
+    "llm_verification_weight": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.20,
+      "description": "Stage 2 LLM verification weight (env: LLM_VERIFICATION_WEIGHT)"
+    },
+    "semantic_pre_filter_threshold": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.30,
+      "description": "Semantic pre-filter threshold; jobs below are discarded before full evaluation (env: SEMANTIC_PRE_FILTER_THRESHOLD)"
+    },
+    "match_threshold": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.50,
+      "description": "Final composite score threshold for acceptance (env: MATCH_THRESHOLD)"
+    },
+    "score_band_strong_min": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.70,
+      "description": "Minimum composite score for 'Strong' interpretation (env: SCORE_BAND_STRONG_MIN)"
+    },
+    "score_band_moderate_min": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.50,
+      "description": "Minimum composite score for 'Moderate' interpretation (env: SCORE_BAND_MODERATE_MIN)"
+    }
+  },
+  "allOf": [
+    {
+      "if": { "required": ["semantic_weight", "tfidf_weight", "skill_overlap_weight"] },
+      "then": {
+        "properties": {
+          "stage1_sum": { "const": 1.0 }
+        },
+        "description": "Stage 1 weights must sum to 1.0 (validated at startup)"
+      }
+    },
+    {
+      "if": { "required": ["final_semantic_weight", "final_tfidf_weight", "final_skill_weight", "llm_verification_weight"] },
+      "then": {
+        "properties": {
+          "stage2_sum": { "const": 1.0 }
+        },
+        "description": "Stage 2 weights must sum to 1.0 (validated at startup)"
+      }
+    }
+  ],
+  "additionalProperties": false
+}

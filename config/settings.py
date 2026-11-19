@@ -1,9 +1,12 @@
 """
 Centralized application settings loaded from .env file.
 """
+import warnings
 from pathlib import Path
-from pydantic_settings import BaseSettings
+
 from pydantic import ConfigDict, Field
+from pydantic_settings import BaseSettings
+
 from tools.validators import validate_port_number
 
 
@@ -12,10 +15,14 @@ class OllamaSettings(BaseSettings):
     base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")
     enabled: bool = Field(default=True, alias="OLLAMA_ENABLED")
 
+    model_config = ConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
 
 class GroqSettings(BaseSettings):
     api_key: str = Field(default="", alias="GROQ_API_KEY")
     model: str = Field(default="llama-3.1-8b-instant", alias="GROQ_MODEL")
+
+    model_config = ConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
 class SmtpSettings(BaseSettings):
@@ -26,12 +33,17 @@ class SmtpSettings(BaseSettings):
     from_name: str = Field(default="", alias="SMTP_FROM_NAME")
     from_email: str = Field(default="", alias="SMTP_FROM_EMAIL")
 
-    model_config = ConfigDict(validate_assignment=True)
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        validate_assignment=True,
+    )
 
     def validate_port(self) -> int:
         """Validate port number."""
         return validate_port_number(self.port)
-    
+
     def validate_config(self) -> None:
         """Validate SMTP configuration."""
         # Validate port
@@ -39,7 +51,7 @@ class SmtpSettings(BaseSettings):
             self.validate_port()
         except ValueError as e:
             raise ValueError(f"Invalid SMTP port: {e}")
-        
+
         # Validate credentials
         if self.username and not self.password:
             raise ValueError("SMTP password required when username is set")
@@ -53,12 +65,17 @@ class ImapSettings(BaseSettings):
     username: str = Field(default="", alias="IMAP_USERNAME")
     password: str = Field(default="", alias="IMAP_PASSWORD")
 
-    model_config = ConfigDict(validate_assignment=True)
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        validate_assignment=True,
+    )
 
     def validate_port(self) -> int:
         """Validate port number."""
         return validate_port_number(self.port)
-    
+
     def validate_config(self) -> None:
         """Validate IMAP configuration."""
         # Validate port
@@ -66,7 +83,7 @@ class ImapSettings(BaseSettings):
             self.validate_port()
         except ValueError as e:
             raise ValueError(f"Invalid IMAP port: {e}")
-        
+
         # Validate credentials
         if self.username and not self.password:
             raise ValueError("IMAP password required when username is set")
@@ -86,11 +103,26 @@ class AppSettings(BaseSettings):
     chroma_path: str = Field(default="data/chroma_db", alias="CHROMA_PATH")
     resume_dir: str = Field(default="data/resumes", alias="RESUME_DIR")
 
-    # Matching
-    # Composite score in the 0.0-1.0 range (weighted semantic similarity,
-    # keyword alignment, skill overlap and LLM verification). The realistic
-    # range for a resume against a real job description is roughly 0.3-0.7.
-    match_threshold: float = Field(default=0.50, alias="MATCH_THRESHOLD")
+    # Matching - Stage 1 weights (must sum to 1.0)
+    semantic_weight: float = Field(default=0.35, alias="SEMANTIC_WEIGHT", ge=0.0, le=1.0)
+    tfidf_weight: float = Field(default=0.30, alias="TFIDF_WEIGHT", ge=0.0, le=1.0)
+    skill_overlap_weight: float = Field(default=0.35, alias="SKILL_OVERLAP_WEIGHT", ge=0.0, le=1.0)
+
+    # Matching - Stage 2 weights (must sum to 1.0)
+    final_semantic_weight: float = Field(default=0.30, alias="FINAL_SEMANTIC_WEIGHT", ge=0.0, le=1.0)
+    final_tfidf_weight: float = Field(default=0.25, alias="FINAL_TFIDF_WEIGHT", ge=0.0, le=1.0)
+    final_skill_weight: float = Field(default=0.25, alias="FINAL_SKILL_WEIGHT", ge=0.0, le=1.0)
+    llm_verification_weight: float = Field(default=0.20, alias="LLM_VERIFICATION_WEIGHT", ge=0.0, le=1.0)
+
+    # Thresholds
+    semantic_pre_filter_threshold: float = Field(default=0.30, alias="SEMANTIC_PRE_FILTER_THRESHOLD", ge=0.0, le=1.0)
+    match_threshold: float = Field(default=0.50, alias="MATCH_THRESHOLD", ge=0.0, le=1.0)
+
+    # Score bands (for interpretation labels)
+    score_band_strong_min: float = Field(default=0.70, alias="SCORE_BAND_STRONG_MIN", ge=0.0, le=1.0)
+    score_band_moderate_min: float = Field(default=0.50, alias="SCORE_BAND_MODERATE_MIN", ge=0.0, le=1.0)
+
+    # Search behavior
     max_results_per_board: int = Field(default=200, alias="MAX_RESULTS_PER_BOARD")
     batch_size: int = Field(default=50, alias="BATCH_SIZE")
 
@@ -135,7 +167,7 @@ class AppSettings(BaseSettings):
                 path.parent.mkdir(parents=True, exist_ok=True)
             else:
                 path.mkdir(parents=True, exist_ok=True)
-    
+
     def validate_critical_settings(self) -> None:
         """Validate that critical settings are properly configured."""
         provider = (self.model_provider or "ollama").lower()
@@ -155,9 +187,57 @@ class AppSettings(BaseSettings):
         if self.max_emails_per_hour < 1:
             raise ValueError("max_emails_per_hour must be at least 1")
 
+        # Validate Stage 1 weights sum to 1.0
+        stage1_sum = self.semantic_weight + self.tfidf_weight + self.skill_overlap_weight
+        if abs(stage1_sum - 1.0) > 0.001:
+            raise ValueError(
+                f"Stage 1 weights sum to {stage1_sum:.3f}, expected 1.0 "
+                f"(SEMANTIC_WEIGHT + TFIDF_WEIGHT + SKILL_OVERLAP_WEIGHT)"
+            )
+
+        # Validate Stage 2 weights sum to 1.0
+        stage2_sum = self.final_semantic_weight + self.final_tfidf_weight + self.final_skill_weight + self.llm_verification_weight
+        if abs(stage2_sum - 1.0) > 0.001:
+            raise ValueError(
+                f"Stage 2 weights sum to {stage2_sum:.3f}, expected 1.0 "
+                f"(FINAL_SEMANTIC_WEIGHT + FINAL_TFIDF_WEIGHT + FINAL_SKILL_WEIGHT + LLM_VERIFICATION_WEIGHT)"
+            )
+
+        # Validate all weights in [0.0, 1.0] (enforced by Field constraints, but double-check)
+        for name, value in [
+            ("SEMANTIC_WEIGHT", self.semantic_weight),
+            ("TFIDF_WEIGHT", self.tfidf_weight),
+            ("SKILL_OVERLAP_WEIGHT", self.skill_overlap_weight),
+            ("FINAL_SEMANTIC_WEIGHT", self.final_semantic_weight),
+            ("FINAL_TFIDF_WEIGHT", self.final_tfidf_weight),
+            ("FINAL_SKILL_WEIGHT", self.final_skill_weight),
+            ("LLM_VERIFICATION_WEIGHT", self.llm_verification_weight),
+        ]:
+            if not (0.0 <= value <= 1.0):
+                raise ValueError(f"{name} must be between 0.0 and 1.0")
+
         # Validate thresholds
         if not (0.0 <= self.match_threshold <= 1.0):
             raise ValueError("match_threshold must be between 0.0 and 1.0")
+        if not (0.0 <= self.semantic_pre_filter_threshold <= 1.0):
+            raise ValueError("semantic_pre_filter_threshold must be between 0.0 and 1.0")
+        if not (0.0 <= self.score_band_strong_min <= 1.0):
+            raise ValueError("score_band_strong_min must be between 0.0 and 1.0")
+        if not (0.0 <= self.score_band_moderate_min <= 1.0):
+            raise ValueError("score_band_moderate_min must be between 0.0 and 1.0")
+
+        # Warn if semantic_pre_filter_threshold >= match_threshold (pre-filter too restrictive)
+        if self.semantic_pre_filter_threshold >= self.match_threshold:
+            warnings.warn(
+                f"SEMANTIC_PRE_FILTER_THRESHOLD ({self.semantic_pre_filter_threshold:.2f}) "
+                f"should be < MATCH_THRESHOLD ({self.match_threshold:.2f}) for effective pre-filtering",
+                UserWarning,
+                stacklevel=2
+            )
+
+        # Validate score band ordering
+        if self.score_band_strong_min <= self.score_band_moderate_min:
+            raise ValueError("score_band_strong_min must be > score_band_moderate_min")
 
         # Validate search layer limits
         if self.max_detail_fetches < 1:

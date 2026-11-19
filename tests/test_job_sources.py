@@ -33,7 +33,6 @@ from tools.job_sources import (  # noqa: E402
     query_tokens,
 )
 
-
 WELLFOUND_NODE = {
     "@context": "http://schema.org/",
     "@type": "JobPosting",
@@ -344,7 +343,6 @@ def test_jobspy_source_maps_rows(monkeypatch):
                 "currency": "USD",
             }
 
-    import tools.job_sources as job_sources
 
     monkeypatch.setitem(
         sys.modules, "jobspy", type("M", (), {"scrape_jobs": staticmethod(lambda **kw: _Frame())})
@@ -370,7 +368,6 @@ def test_http_client_translates_network_errors(monkeypatch):
 
 
 def test_http_client_translates_blocked_status(monkeypatch):
-    import requests
 
     client = HttpClient(timeout=1, retries=0)
 
@@ -397,7 +394,7 @@ def test_blocked_reason_translates_third_party_messages():
 
 
 def test_jobspy_source_reports_blocked_board(monkeypatch):
-    import tools.job_sources as job_sources
+    from tools import job_sources
 
     class _EmptyFrame:
         empty = True

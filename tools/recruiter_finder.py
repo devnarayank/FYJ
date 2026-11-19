@@ -2,11 +2,12 @@
 Lightweight HTTP-based recruiter/contact finder.
 Uses requests + BeautifulSoup instead of Playwright to save RAM.
 """
-import re
 import logging
-from urllib.parse import urlparse
+import re
+
 import requests
 from bs4 import BeautifulSoup
+
 from config.constants import DEFAULT_HEADERS
 from models.schemas import ContactInfo
 

@@ -2,6 +2,7 @@
 TF-IDF based keyword matching using scikit-learn.
 """
 import logging
+
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity as sklearn_cosine
 

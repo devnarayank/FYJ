@@ -1,6 +1,6 @@
 # Quickstart Validation Guide: Fix Misleading Search & Outreach Behavior
 
-**Feature**: specs/001-fix-search-outreach-mismatch/spec.md  
+**Feature**: specs/001-fix-search-outreach-mismatch/spec.md
 **Generated**: 2026-11-15
 
 ---
@@ -41,6 +41,7 @@ python main.py search --resume-path data/resumes/AI-EGI_DevNK.pdf --roles "machi
 ```
 
 **Expected Output**:
+
 ```
 Found N matched jobs for "machine learning engineer" (threshold: 50%)
 
@@ -56,6 +57,7 @@ Run 'main.py run' to save matches and generate dashboard.
 ```
 
 **Pass Criteria**:
+
 - [ ] Table shows at least 3 jobs (or "No jobs matched" with guidance)
 - [ ] At least 2 distinct `Source` values (e.g., linkedin, wellfound, cutshort, indeed)
 - [ ] No placeholder text: "guidance", "zero vector", "dummy", "placeholder"
@@ -72,10 +74,12 @@ python main.py search --resume-path data/resumes/AI-EGI_DevNK.pdf --roles "machi
 ```
 
 **Expected Output** (one of):
+
 - Fewer results than default threshold
 - OR: `No jobs matched above threshold 80%. Try adjusting --roles, --locations, or --threshold.`
 
 **Pass Criteria**:
+
 - [ ] Results (if any) have composite score ≥ 80%
 - [ ] Threshold value shown in output matches `--threshold` argument
 - [ ] Exit code 0
@@ -99,6 +103,7 @@ python main.py search --resume-path nonexistent.pdf --roles "engineer"
 ```
 
 **Pass Criteria**:
+
 - [ ] Correct exit codes (1 for file errors, 2 for missing roles)
 - [ ] Clear error messages matching contract
 
@@ -111,8 +116,9 @@ python main.py run data/resumes/AI-EGI_DevNK.pdf --roles "machine learning engin
 ```
 
 **Expected Output** (at end):
+
 ```
-                       Matched Jobs (10 above threshold)                       
+                       Matched Jobs (10 above threshold)                     
 ┌┬──────────────────────────┬────────────────┬──────────────┬────┬───────────┐
 ││ Title                    │ Company        │ Source       │ S… │ Location  │
 ├┼──────────────────────────┼────────────────┼──────────────┼────┼───────────┤
@@ -133,6 +139,7 @@ python main.py run data/resumes/AI-EGI_DevNK.pdf --roles "machine learning engin
 ```
 
 **Pass Criteria**:
+
 - [ ] Outreach summary shows `Attempted: 0` and `Sent: 0`
 - [ ] `Skipped` equals number of matched jobs (10 in example)
 - [ ] Dashboard title is "Matched Jobs Dashboard" (not "Application Status Dashboard")
@@ -150,6 +157,7 @@ python main.py dashboard
 ```
 
 **Expected Output**:
+
 ```
   Matched Jobs Dashboard  
 ┌──────────────────────────┬───────┐
@@ -160,6 +168,7 @@ python main.py dashboard
 ```
 
 **Pass Criteria**:
+
 - [ ] Title: "Matched Jobs Dashboard"
 - [ ] Total row references "matched jobs saved" (not "applications")
 - [ ] Status breakdown only shows "matched"
@@ -172,13 +181,14 @@ python main.py dashboard
 
 Run all three commands in sequence and verify consistent vocabulary:
 
-| Command | Must Use | Must NOT Use |
-|---------|----------|--------------|
-| `search` | "matched jobs", "matches", "Score" | "attempted", "applied", "sent", "guidance", "placeholder" |
-| `run` | "matched", "saved to database", "skipped" | "attempted" (when >0), "applied", "sent" |
-| `dashboard` | "matched jobs saved", "matched" | "applications", "applied", "attempted" |
+| Command       | Must Use                                  | Must NOT Use                                              |
+| ------------- | ----------------------------------------- | --------------------------------------------------------- |
+| `search`    | "matched jobs", "matches", "Score"        | "attempted", "applied", "sent", "guidance", "placeholder" |
+| `run`       | "matched", "saved to database", "skipped" | "attempted" (when >0), "applied", "sent"                  |
+| `dashboard` | "matched jobs saved", "matched"           | "applications", "applied", "attempted"                    |
 
 **Pass Criteria**:
+
 - [ ] No command uses "attempted" with a positive count
 - [ ] No command uses "applied" or "sent" for current persistence-only behavior
 - [ ] User can correctly infer: 0 applications sent, N matches saved
@@ -198,6 +208,7 @@ python main.py track
 ```
 
 **Pass Criteria**:
+
 - [ ] `analyze` completes and stores profile/embedding
 - [ ] `track` runs without error (may show empty if no follow-up logic)
 
@@ -208,6 +219,7 @@ pytest tests/ -q
 ```
 
 **Pass Criteria**:
+
 - [ ] All 35 existing tests pass
 - [ ] No new test failures introduced
 
@@ -215,12 +227,12 @@ pytest tests/ -q
 
 ## Troubleshooting
 
-| Issue | Likely Cause | Fix |
-|-------|--------------|-----|
-| "No LLM provider available" | Ollama not running / Groq key invalid | Start Ollama (`ollama serve`) or set valid `GROQ_API_KEY` |
-| "All job sources unavailable" | Network/proxy / all boards blocked | Check internet; set `JOBSPY_PROXIES` in `.env` if needed |
-| Zero jobs found | Threshold too high / resume mismatch | Lower `--threshold` or adjust `--roles` |
-| Unicode/box-drawing corruption | Terminal encoding | Run `chcp 65001` (Windows) or ensure UTF-8 locale |
+| Issue                          | Likely Cause                          | Fix                                                           |
+| ------------------------------ | ------------------------------------- | ------------------------------------------------------------- |
+| "No LLM provider available"    | Ollama not running / Groq key invalid | Start Ollama (`ollama serve`) or set valid `GROQ_API_KEY` |
+| "All job sources unavailable"  | Network/proxy / all boards blocked    | Check internet; set `JOBSPY_PROXIES` in `.env` if needed  |
+| Zero jobs found                | Threshold too high / resume mismatch  | Lower `--threshold` or adjust `--roles`                   |
+| Unicode/box-drawing corruption | Terminal encoding                     | Run `chcp 65001` (Windows) or ensure UTF-8 locale           |
 
 ---
 

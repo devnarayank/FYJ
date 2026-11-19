@@ -8,14 +8,14 @@ Uses TypedDict state that flows through each node, accumulating results.
 Each node calls its corresponding agent module and returns updated state.
 """
 import logging
-from typing import Annotated, Optional, TypedDict
+from typing import TypedDict
 
 from langchain_core.messages import HumanMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
 
 from config.constants import DEFAULT_BOARDS
-from config.settings import AppSettings, get_settings
+from config.settings import get_settings
 from graph.tools import TOOL_REGISTRY as GRAPH_TOOL_REGISTRY
 from llm.factory import build_llm
 from models.database import Database
@@ -70,7 +70,7 @@ class JobHuntState(TypedDict, total=False):
 def _validate_state_start(state: JobHuntState) -> bool:
     """Validate initial state before pipeline starts."""
     errors = []
-    
+
     if not state.get("resume_path"):
         errors.append("resume_path is required")
     else:
@@ -78,11 +78,11 @@ def _validate_state_start(state: JobHuntState) -> bool:
             validate_file_path(state["resume_path"])
         except ValueError as e:
             errors.append(f"Invalid resume path: {str(e)}")
-    
+
     if errors:
         logger.error("State validation failed: " + "; ".join(errors))
         return False
-    
+
     return True
 
 
@@ -203,18 +203,18 @@ def node_analyze_resume(state: JobHuntState) -> dict:
             "current_phase": "error",
             "errors": state.get("errors", []) + ["Invalid input state for resume analysis"],
         }
-    
+
     settings = get_settings()
     try:
         result = analyze_resume(state["resume_path"], settings)
-        
+
         # Validate output
         if not _validate_resume_output(result):
             return {
                 "current_phase": "error",
                 "errors": state.get("errors", []) + ["Resume analysis produced incomplete results"],
             }
-        
+
         return {
             "resume_text": result["resume_text"],
             "candidate_profile": result["candidate_profile"].model_dump(),
@@ -306,7 +306,6 @@ def node_execute_outreach(state: JobHuntState) -> dict:
 def node_track_followups(state: JobHuntState) -> dict:
     """Node 4: Follow-up & Tracking Agent."""
     # Follow-up agent removed — synthesize a simple dashboard from DB snapshots.
-    from models.schemas import CandidateProfile
 
     settings = get_settings()
     db = Database(settings.db_path)

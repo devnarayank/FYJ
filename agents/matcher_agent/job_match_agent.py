@@ -3,28 +3,38 @@ Agent 2: Job Search & Matching Agent
 Scrapes job boards, applies 3-stage hybrid matching, and stores results.
 """
 import gc
-import json
 import logging
 import time
+
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
-from langchain_core.messages import SystemMessage, HumanMessage
-from config.prompts import JOB_MATCH_VERIFICATION_PROMPT, SEARCH_QUERY_GENERATION_PROMPT
-from config.settings import AppSettings
+
 from config.constants import (
     DEFAULT_BOARDS,
-    FINAL_SEMANTIC_WEIGHT, FINAL_TFIDF_WEIGHT, FINAL_SKILL_WEIGHT,
+    FINAL_SEMANTIC_WEIGHT,
+    FINAL_SKILL_WEIGHT,
+    FINAL_TFIDF_WEIGHT,
+    GROQ_DELAY_SECONDS,
     LLM_VERIFICATION_WEIGHT,
-    SEMANTIC_WEIGHT, TFIDF_WEIGHT, SKILL_OVERLAP_WEIGHT,
-    SEMANTIC_PRE_FILTER_THRESHOLD, GROQ_DELAY_SECONDS,
+    SEMANTIC_PRE_FILTER_THRESHOLD,
+    SEMANTIC_WEIGHT,
+    SKILL_OVERLAP_WEIGHT,
+    TFIDF_WEIGHT,
 )
-from tools.job_scraper import scrape_jobs_multi_query
-from tools.embedding_tools import embed_text, embed_batch, cosine_similarity_batch
-from tools.tfidf_matcher import compute_tfidf_batch
-from tools.skill_matcher import extract_skills_from_text, compute_skill_overlap
-from tools.validators import parse_json_safely
+from config.prompts import JOB_MATCH_VERIFICATION_PROMPT, SEARCH_QUERY_GENERATION_PROMPT
+from config.settings import AppSettings
 from models.schemas import (
-    CandidateProfile, MatchedJob, MatchScores, SkillAnalysis, SearchMetadata,
+    CandidateProfile,
+    MatchedJob,
+    MatchScores,
+    SearchMetadata,
+    SkillAnalysis,
 )
+from tools.embedding_tools import cosine_similarity_batch, embed_batch, embed_text
+from tools.job_scraper import scrape_jobs_multi_query
+from tools.skill_matcher import compute_skill_overlap
+from tools.tfidf_matcher import compute_tfidf_batch
+from tools.validators import parse_json_safely
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +57,7 @@ def search_and_match_jobs(
        Stage 3: Skill overlap + LLM verification — precision
     4. Composite score > 95% filter
     """
-    logger.info(f"━━━ Agent 2: Job Search & Matching ━━━")
+    logger.info("━━━ Agent 2: Job Search & Matching ━━━")
 
     # Step 1: Generate search queries
     search_queries = _generate_search_queries(candidate_profile, settings, target_roles)

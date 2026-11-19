@@ -1,9 +1,10 @@
 """
 Resume parsing tools — extracts text from PDF and DOCX files.
 """
-import re
 import logging
+import re
 from pathlib import Path
+
 from tools.validators import validate_file_path
 
 logger = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ def parse_pdf(file_path: str) -> str:
     except ValueError as e:
         logger.error(f"Invalid PDF path: {e}")
         raise FileNotFoundError(f"Resume not found or path invalid: {file_path}")
-    
+
     if path.suffix.lower() != ".pdf":
         raise ValueError(f"Expected PDF file, got: {path.suffix}")
 
@@ -46,7 +47,7 @@ def parse_docx(file_path: str) -> str:
     except ValueError as e:
         logger.error(f"Invalid DOCX path: {e}")
         raise FileNotFoundError(f"Resume not found or path invalid: {file_path}")
-    
+
     if path.suffix.lower() != ".docx":
         raise ValueError(f"Expected DOCX file, got: {path.suffix}")
 

@@ -2,17 +2,18 @@
 Agent 1: Resume Analysis Agent
 Parses resume, extracts structured profile using Groq LLM, and generates embeddings.
 """
-import json
 import logging
+
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
-from langchain_core.messages import SystemMessage, HumanMessage
+
 from config.prompts import RESUME_ANALYSIS_PROMPT
 from config.settings import AppSettings
-from tools.resume_parser import parse_resume
+from models.schemas import CandidateProfile, Education, Skills, WorkExperience
 from tools.embedding_tools import embed_text, store_embedding
+from tools.resume_parser import parse_resume
 from tools.skill_matcher import extract_skills_from_text
 from tools.validators import parse_json_safely
-from models.schemas import CandidateProfile, Skills, WorkExperience, Education
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ def analyze_resume(resume_path: str, settings: AppSettings) -> dict:
     3. Augment with taxonomy-based skill matching
     4. Generate & store embeddings in ChromaDB
     """
-    logger.info(f"━━━ Agent 1: Resume Analysis ━━━")
+    logger.info("━━━ Agent 1: Resume Analysis ━━━")
 
     # Step 1: Parse resume file
     logger.info(f"Parsing resume: {resume_path}")
@@ -107,7 +108,7 @@ def _llm_extract_profile(resume_text: str, settings: AppSettings) -> CandidatePr
         "work_experience": [],
         "education": [],
     }
-    
+
     try:
         data = parse_json_safely(raw, default_profile)
         if not data or data == default_profile:

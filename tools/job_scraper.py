@@ -19,11 +19,10 @@ from config.constants import (
     SUPPORTED_BOARDS,
 )
 from tools.job_sources import (
+    CutShortSource,
     HttpClient,
-    JobPosting,
     JobSource,
     JobSpySource,
-    CutShortSource,
     SourceHealth,
     WellfoundSource,
     collect_jobs,

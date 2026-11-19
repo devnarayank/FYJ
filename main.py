@@ -9,9 +9,9 @@ Commands:
   python main.py track        Show matched jobs dashboard (alias for dashboard)
   python main.py dashboard    Show matched jobs dashboard
 """
+import logging
 import os
 import sys
-import logging
 from pathlib import Path
 
 os.environ.setdefault("PYTHONUTF8", "1")
@@ -40,9 +40,9 @@ _force_utf8_output()
 import click
 from dotenv import load_dotenv
 from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
 from rich.logging import RichHandler
+from rich.panel import Panel
+from rich.table import Table
 from rich.text import Text
 
 # Load .env before anything else
@@ -96,9 +96,9 @@ def cli(verbose):
 @click.option("--boards", "-b", multiple=True, help="Job sources to use (default: ENABLED_SOURCES)")
 def run(resume_path, roles, locations, boards):
     """Run the pipeline and export results to data/job_hunt_results.xlsx."""
-    from graph.orchestrator import run_pipeline
     from config.constants import DEFAULT_BOARDS
     from config.settings import get_settings
+    from graph.orchestrator import run_pipeline
 
     try:
         configured = [
@@ -180,10 +180,10 @@ def search(resume_path, roles, locations, boards, threshold, verbose):
         import logging
         logging.getLogger().setLevel(logging.DEBUG)
 
-    from agents.resume_agent import analyze_resume
     from agents.job_match_agent import search_and_match_jobs
-    from config.settings import get_settings
+    from agents.resume_agent import analyze_resume
     from config.constants import DEFAULT_BOARDS
+    from config.settings import get_settings
 
     settings = get_settings()
 
@@ -242,7 +242,7 @@ def search(resume_path, roles, locations, boards, threshold, verbose):
     # Display results
     if matched_jobs:
         console.print(f"\nFound {len(matched_jobs)} matched jobs for \"{', '.join(roles)}\" (threshold: {match_threshold:.0%})\n")
-        console.print(render_matched_jobs_table(matched_jobs))
+        console.print(render_matched_jobs_table(matched_jobs, verbose=verbose))
         console.print("\nRun 'main.py run' to save matches and generate dashboard.")
     else:
         console.print(f"\nNo jobs matched above threshold {match_threshold:.0%} for \"{', '.join(roles)}\".")
@@ -287,32 +287,104 @@ def dashboard():
 # Display Helpers
 # ──────────────────────────────────────────────
 
-def render_matched_jobs_table(matched_jobs: list[dict]) -> Table:
+def render_matched_jobs_table(matched_jobs: list[dict], verbose: bool = False) -> Table:
     """Render a consistently formatted table of matched jobs.
     
     Used by search, run, and dashboard commands for terminology consistency (FR-008).
     """
+    # Determine if jobs have interpretation field (new calibrated output)
+    has_interpretation = any("score_interpretation" in job for job in matched_jobs)
+
     table = Table(title=f"Matched Jobs ({len(matched_jobs)} above threshold)")
     table.add_column("#", style="dim", width=3)
     table.add_column("Title", style="cyan", width=30)
     table.add_column("Company", style="green", width=20)
     table.add_column("Source", width=18)
     table.add_column("Score", style="bold yellow", width=8)
+    if has_interpretation:
+        table.add_column("Int", width=12)
     table.add_column("Location", width=15)
-    table.add_column("Job Link", style="blue", overflow="fold")  # Changed from "Apply Link" per FR-008
+    table.add_column("Job Link", style="blue", overflow="fold")
 
     for i, job in enumerate(matched_jobs):
         score = job.get("match_scores", {}).get("composite_score", 0)
-        table.add_row(
+        interpretation = job.get("score_interpretation", "")
+
+        # Emoji and text for interpretation
+        if interpretation == "strong":
+            int_display = "🟢 Strong"
+        elif interpretation == "moderate":
+            int_display = "🟡 Moderate"
+        elif interpretation == "weak":
+            int_display = "🔴 Weak"
+        else:
+            int_display = ""
+
+        row = [
             str(i + 1),
             job.get("title", "N/A")[:30],
             job.get("company", "N/A")[:20],
             job.get("source_board", "N/A")[:18],
             f"{score:.1%}",
+        ]
+        if has_interpretation:
+            row.append(int_display)
+        row.extend([
             job.get("location", "N/A")[:15],
             job.get("source_url", ""),
-        )
+        ])
+        table.add_row(*row)
+
+    # If verbose, print detailed breakdown for each job
+    if verbose and has_interpretation:
+        for i, job in enumerate(matched_jobs):
+            console.print(f"\n[bold]Score breakdown for #{i + 1}:[/bold]")
+            _print_score_breakdown(job)
+
     return table
+
+
+def _print_score_breakdown(job: dict) -> None:
+    """Print detailed score breakdown for a matched job in verbose mode."""
+    match_scores = job.get("match_scores", {})
+    score_breakdown = job.get("score_breakdown")
+    weight_config = job.get("weight_config_used")
+
+    if not score_breakdown:
+        console.print("  [dim]No detailed breakdown available[/dim]")
+        return
+
+    interpretation = job.get("score_interpretation", "moderate")
+    if interpretation == "strong":
+        int_text = "🟢 Strong match — likely to pass initial screening"
+    elif interpretation == "moderate":
+        int_text = "🟡 Moderate match — manual review recommended"
+    else:
+        int_text = "🔴 Weak match — significant gaps"
+
+    console.print(f"  [bold]Interpretation:[/bold] {int_text}")
+    console.print(f"  [bold]Composite Score:[/bold] {match_scores.get('composite_score', 0):.1%}")
+
+    # Stage 1 breakdown
+    if score_breakdown.get("stage1_components"):
+        console.print("  [bold]Stage 1 (Pre-filter composite):[/bold]")
+        for name, comp in score_breakdown["stage1_components"].items():
+            name_fmt = name.replace("_", " ").title()
+            console.print(f"    {name_fmt} ({comp['weight']:.2f}): {comp['raw_score']:.2f} → {comp['weighted_contribution']:.3f}")
+        console.print(f"    [dim]Stage 1 Score: {score_breakdown['stage1_formula']}[/dim]")
+
+    # Stage 2 breakdown
+    if score_breakdown.get("stage2_components"):
+        console.print("  [bold]Stage 2 (Final composite):[/bold]")
+        for name, comp in score_breakdown["stage2_components"].items():
+            name_fmt = name.replace("_", " ").title()
+            console.print(f"    {name_fmt} ({comp['weight']:.2f}): {comp['raw_score']:.2f} → {comp['weighted_contribution']:.3f}")
+        console.print(f"    [dim]Composite: {score_breakdown['stage2_formula']}[/dim]")
+
+    # Interpretation bands
+    bands = score_breakdown.get("interpretation_band", {})
+    if bands:
+        console.print(f"  [bold]Bands:[/bold] Strong ≥ {bands.get('strong_min', 0.7):.0%}, Moderate ≥ {bands.get('moderate_min', 0.5):.0%}")
 
 
 def render_outreach_summary(summary: dict) -> Panel:
