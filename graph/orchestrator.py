@@ -287,8 +287,8 @@ def node_execute_outreach(state: JobHuntState) -> dict:
         for job in jobs:
             db.insert_job(job)
 
-        # No external outreach executed — return empty summary
-        summary = {"total_attempted": len(jobs), "successfully_sent": 0, "skipped": 0, "failed": 0}
+        # No external outreach executed — return honest summary (FR-006)
+        summary = {"total_attempted": 0, "successfully_sent": 0, "skipped": len(jobs), "failed": 0}
         return {
             "outreach_results": [],
             "outreach_summary": summary,

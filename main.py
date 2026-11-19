@@ -2,12 +2,12 @@
 Multi-Agent Job Hunter -- CLI Entry Point
 
 Commands:
-  python main.py run          Full pipeline (resume > match > outreach > track)
+  python main.py run          Full pipeline (resume > match > save matches > dashboard)
   python main.py analyze      Resume analysis only
-  python main.py search       Job search & matching only (requires prior analyze)
+  python main.py search       Job search & matching (real job board scraping)
   python main.py outreach     Execute outreach only (requires prior search)
-  python main.py track        Run one follow-up cycle
-  python main.py dashboard    Show current application status
+  python main.py track        Show matched jobs dashboard (alias for dashboard)
+  python main.py dashboard    Show matched jobs dashboard
 """
 import os
 import sys
@@ -164,28 +164,95 @@ def analyze(resume_path):
 
 
 @cli.command()
-def search():
-    """Search & match jobs (Agent 2). Requires prior 'analyze' run."""
+@click.option("--resume-path", "-r", required=True, type=click.Path(exists=True), help="Path to resume PDF")
+@click.option("--roles", "-R", multiple=True, required=True, help="Target job roles to search for")
+@click.option("--locations", "-L", multiple=True, default=["Remote"], help="Target locations")
+@click.option("--boards", "-b", multiple=True, default=[], help="Job boards to search (default: ENABLED_SOURCES)")
+@click.option("--threshold", "-t", type=float, default=None, help="Override match threshold (default: MATCH_THRESHOLD)")
+@click.option("--verbose", "-v", is_flag=True, help="Enable debug logging")
+def search(resume_path, roles, locations, boards, threshold, verbose):
+    """Search & match jobs against real job boards (Agent 2).
+
+    Scrapes configured job boards, computes match scores (semantic, TF-IDF, skill overlap,
+    LLM verification), and displays ranked results with composite scores.
+    """
+    if verbose:
+        import logging
+        logging.getLogger().setLevel(logging.DEBUG)
+
+    from agents.resume_agent import analyze_resume
     from agents.job_match_agent import search_and_match_jobs
     from config.settings import get_settings
-
-    from tools.embedding_tools import query_similar
+    from config.constants import DEFAULT_BOARDS
 
     settings = get_settings()
 
-    # Check for stored resume data
-    results = query_similar([0.0] * 384, n_results=1, persist_dir=settings.chroma_path)
-    if not results:
-        console.print("[red]No resume found. Run 'analyze' first.[/red]")
-        return
+    # Determine boards to use
+    selected_boards = list(boards)
+    if not selected_boards:
+        try:
+            configured = [
+                item.strip()
+                for item in (settings.enabled_sources or "").split(",")
+                if item.strip()
+            ]
+            selected_boards = configured or list(DEFAULT_BOARDS)
+        except Exception:
+            selected_boards = list(DEFAULT_BOARDS)
 
-    console.print("[yellow]Note: Using stored resume data. Run 'analyze' first if not done.[/yellow]")
-    console.print("[yellow]Search will start with default profile. Use 'run' for full pipeline.[/yellow]")
+    # Determine threshold
+    match_threshold = threshold if threshold is not None else settings.match_threshold
+
+    # Analyze resume
+    try:
+        result = analyze_resume(str(Path(resume_path).resolve()), settings)
+    except FileNotFoundError:
+        console.print(f"[red]Error: Resume file not found: {resume_path}[/red]")
+        raise SystemExit(1)
+    except Exception as e:
+        console.print(f"[red]Error: Invalid PDF file: {resume_path} ({e})[/red]")
+        raise SystemExit(1)
+
+    resume_text = result["resume_text"]
+    candidate_profile = result["candidate_profile"]
+
+    # Search and match
+    try:
+        match_result = search_and_match_jobs(
+            candidate_profile=candidate_profile,
+            resume_text=resume_text,
+            settings=settings,
+            target_locations=list(locations),
+            target_roles=list(roles),
+            boards=selected_boards,
+        )
+    except Exception as e:
+        console.print(f"[red]Error: No LLM provider available or all job sources failed ({e})[/red]")
+        raise SystemExit(3)
+
+    matched_jobs = match_result.get("matched_jobs", [])
+
+    # Filter by threshold (search_and_match_jobs already applies threshold, but allow override)
+    if threshold is not None:
+        matched_jobs = [
+            job for job in matched_jobs
+            if job.get("match_scores", {}).get("composite_score", 0) >= threshold
+        ]
+
+    # Display results
+    if matched_jobs:
+        console.print(f"\nFound {len(matched_jobs)} matched jobs for \"{', '.join(roles)}\" (threshold: {match_threshold:.0%})\n")
+        console.print(render_matched_jobs_table(matched_jobs))
+        console.print("\nRun 'main.py run' to save matches and generate dashboard.")
+    else:
+        console.print(f"\nNo jobs matched above threshold {match_threshold:.0%} for \"{', '.join(roles)}\".")
+        console.print("Try adjusting --roles, --locations, or --threshold.")
+        raise SystemExit(0)
 
 
 @cli.command()
 def track():
-    """Run one follow-up cycle (Agent 4)."""
+    """Show matched jobs dashboard (alias for dashboard)."""
     from config.settings import get_settings
     from models.database import Database
 
@@ -202,7 +269,7 @@ def track():
 
 @cli.command()
 def dashboard():
-    """Show current application status dashboard."""
+    """Show matched jobs dashboard."""
     from config.settings import get_settings
     from models.database import Database
 
@@ -220,6 +287,48 @@ def dashboard():
 # Display Helpers
 # ──────────────────────────────────────────────
 
+def render_matched_jobs_table(matched_jobs: list[dict]) -> Table:
+    """Render a consistently formatted table of matched jobs.
+    
+    Used by search, run, and dashboard commands for terminology consistency (FR-008).
+    """
+    table = Table(title=f"Matched Jobs ({len(matched_jobs)} above threshold)")
+    table.add_column("#", style="dim", width=3)
+    table.add_column("Title", style="cyan", width=30)
+    table.add_column("Company", style="green", width=20)
+    table.add_column("Source", width=18)
+    table.add_column("Score", style="bold yellow", width=8)
+    table.add_column("Location", width=15)
+    table.add_column("Job Link", style="blue", overflow="fold")  # Changed from "Apply Link" per FR-008
+
+    for i, job in enumerate(matched_jobs):
+        score = job.get("match_scores", {}).get("composite_score", 0)
+        table.add_row(
+            str(i + 1),
+            job.get("title", "N/A")[:30],
+            job.get("company", "N/A")[:20],
+            job.get("source_board", "N/A")[:18],
+            f"{score:.1%}",
+            job.get("location", "N/A")[:15],
+            job.get("source_url", ""),
+        )
+    return table
+
+
+def render_outreach_summary(summary: dict) -> Panel:
+    """Render a consistently formatted outreach summary panel.
+    
+    Ensures honest counts when no external outreach occurs (FR-006).
+    """
+    return Panel.fit(
+        f"Attempted: {summary.get('total_attempted', 0)}\n"
+        f"[green]Sent: {summary.get('successfully_sent', 0)}[/green]\n"
+        f"Skipped: {summary.get('skipped', 0)}\n"
+        f"[red]Failed: {summary.get('failed', 0)}[/red]",
+        title="[bold]Outreach Summary[/bold]",
+    )
+
+
 def _display_results(state: dict):
     """Display the final pipeline results."""
     errors = state.get("errors", [])
@@ -235,29 +344,9 @@ def _display_results(state: dict):
             border_style="yellow",
         ))
 
-    # Matched Jobs
+    # Matched Jobs - use shared helper for consistent terminology (FR-008)
     if matched:
-        table = Table(title=f"Matched Jobs ({len(matched)} above threshold)")
-        table.add_column("#", style="dim", width=3)
-        table.add_column("Title", style="cyan", width=30)
-        table.add_column("Company", style="green", width=20)
-        table.add_column("Source", width=18)
-        table.add_column("Score", style="bold yellow", width=8)
-        table.add_column("Location", width=15)
-        table.add_column("Apply Link", style="blue", overflow="fold")
-
-        for i, job in enumerate(matched):
-            score = job.get("match_scores", {}).get("composite_score", 0)
-            table.add_row(
-                str(i + 1),
-                job.get("title", "N/A")[:30],
-                job.get("company", "N/A")[:20],
-                job.get("source_board", "N/A")[:18],
-                f"{score:.1%}",
-                job.get("location", "N/A")[:15],
-                job.get("source_url", ""),
-            )
-        console.print(table)
+        console.print(render_matched_jobs_table(matched))
         console.print("\n[bold]Job links[/bold]")
         for i, job in enumerate(matched, start=1):
             title = job.get("title") or "Untitled job"
@@ -272,15 +361,9 @@ def _display_results(state: dict):
     else:
         console.print("[yellow]No jobs matched above the threshold.[/yellow]")
 
-    # Outreach Summary
+    # Outreach Summary - use shared helper for honest counts (FR-006)
     if outreach:
-        console.print(Panel.fit(
-            f"Attempted: {outreach.get('total_attempted', 0)}\n"
-            f"[green]Sent: {outreach.get('successfully_sent', 0)}[/green]\n"
-            f"Skipped: {outreach.get('skipped', 0)}\n"
-            f"[red]Failed: {outreach.get('failed', 0)}[/red]",
-            title="[bold]Outreach Summary[/bold]",
-        ))
+        console.print(render_outreach_summary(outreach))
 
     # Dashboard
     if dashboard:
@@ -298,32 +381,31 @@ def _display_results(state: dict):
 
 
 def _display_dashboard(dashboard_data):
-    """Display tracking dashboard."""
+    """Display matched jobs dashboard (FR-007)."""
     if not dashboard_data:
         console.print("[dim]No tracking data available.[/dim]")
         return
 
     breakdown = dashboard_data.get("status_breakdown", {})
     if breakdown:
-        table = Table(title="Application Status Dashboard")
+        table = Table(title="Matched Jobs Dashboard")
         table.add_column("Status", style="cyan")
         table.add_column("Count", style="bold", justify="right")
         for status, count in breakdown.items():
-            style = "green" if "positive" in status else "red" if "negative" in status or "cold" in status else ""
-            table.add_row(status.replace("_", " ").title(), str(count), style=style)
+            table.add_row(status.replace("_", " ").title(), str(count))
         total = sum(breakdown.values())
         table.add_row("─" * 20, "─" * 5, style="dim")
-        table.add_row("Total", str(total), style="bold")
+        table.add_row("Total matched jobs saved", str(total), style="bold")
         console.print(table)
 
 
 def _display_db_dashboard(db):
-    """Display dashboard from database."""
+    """Display matched jobs dashboard from database (FR-007)."""
     breakdown = db.get_status_breakdown()
     recent = db.get_recent_activity(limit=10)
 
     if breakdown:
-        table = Table(title="Application Status Dashboard")
+        table = Table(title="Matched Jobs Dashboard")
         table.add_column("Status", style="cyan")
         table.add_column("Count", style="bold", justify="right")
         for status, count in breakdown.items():
@@ -335,11 +417,11 @@ def _display_db_dashboard(db):
         table.add_column("Company", style="green")
         table.add_column("Title", style="cyan")
         table.add_column("Status")
-        table.add_column("Last Activity", style="dim")
+        table.add_column("Action", style="dim")
         for r in recent:
             table.add_row(
                 r["company"][:20], r["title"][:25],
-                r["status"], r.get("last_action_at", "")[:16],
+                r["status"], r.get("last_action", "saved to database")[:30],
             )
         console.print(table)
 
